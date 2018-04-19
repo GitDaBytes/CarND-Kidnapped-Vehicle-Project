@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	num_particles = 100;
+	num_particles = 1000;
 
 	// split out for readability
 	double std_dev_x = std[0];
@@ -87,10 +87,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			double dist = delta_t * velocity; // distance travelled (hypotenuse)
 
 			// update x pos
-			particles[i].x += std::sin(particles[i].theta) * dist;
+			particles[i].x += std::cos(particles[i].theta) * dist;
 
 			// update y pos
-			particles[i].y += std::cos(particles[i].theta) * dist;
+			particles[i].y += std::sin(particles[i].theta) * dist;
 
 			// theta does not change - yaw rate is zero in this case
 
@@ -117,7 +117,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			particles[i].y += (velocity / yaw_rate) * (std::cos(particles[i].theta) - std::cos(particles[i].theta + yaw_rate*delta_t));
 
 			// update theta
-			particles[i].theta += yaw_rate;
+			particles[i].theta += yaw_rate * delta_t;
 
 
 			// add gaussian noise to the position / heading
@@ -138,6 +138,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
+
 
 	for (size_t o_idx = 0; o_idx < observations.size(); o_idx++)
 	{
@@ -201,7 +202,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		for (size_t idx_obs = 0; idx_obs < obs2.size(); idx_obs++)
 		{
 			double map_x, map_y;
-			transform_coords_car_to_map(particles[i].x, particles[i].y, obs2[idx_obs].x, obs2[idx_obs].y, map_x, map_y);
+			transform_coords_car_to_map(particles[i].x, particles[i].y, particles[i].theta,
+										obs2[idx_obs].x, obs2[idx_obs].y, map_x, map_y);
 
 			// update observed obs to map coords
 			obs2[idx_obs].x = map_x;
@@ -213,8 +215,28 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		for (size_t idx_obs = 0; idx_obs < obs2.size(); idx_obs++)
 		{
+			if (idx_obs == 0)
+			{
+				particles[i].weight = 1.0;
+			}
+
+			double target_x = 0.0;
+			double target_y = 0.0;
+
+			// find x,y coordinates of the closest prediction for obs
+			for (size_t k = 0; k < predicted_obs.size(); k++) 
+			{
+				if (predicted_obs[k].id == obs2[idx_obs].id)
+				{
+					target_x = predicted_obs[k].x;
+					target_y = predicted_obs[k].y;
+				}
+			}
+
+			//calculate the weight
+
 			particles[i].weight *= generate_particle_weight(obs2[idx_obs].x, obs2[idx_obs].y,
-														map_landmarks.landmark_list[obs2[idx_obs].id].x_f, map_landmarks.landmark_list[obs2[idx_obs].id].y_f,
+														target_x, target_y,
 														std_landmark[0], std_landmark[1]);
 		}
 
@@ -255,12 +277,6 @@ void ParticleFilter::resample() {
 
 	// make our resampled vector the current vector
 	particles.swap(resampled_p);
-
-	// set all weights back to 1 for next loop through
-	for (auto& particle : particles)
-	{
-		particle.weight = 1.0;
-	}
 }
 
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations, 
@@ -318,15 +334,16 @@ double ParticleFilter::generate_particle_weight(double observation_x, double obs
 	// calculate exponent
 	double exponent = std::pow(observation_x - mu_x, 2.0) / (2 * std::pow(landmark_stddev_x, 2.0)) + std::pow(observation_y - mu_y, 2.0) / (2 * std::pow(landmark_stddev_y, 2.0));
 
+
 	// calculate weight using normalization terms and exponent
 	double weight = gauss_norm * std::exp(-exponent);
 
 	return weight;
 }
 
-void ParticleFilter::transform_coords_car_to_map(double current_x, double current_y, double observed_x, double observed_y, double &result_x, double &result_y)
+void ParticleFilter::transform_coords_car_to_map(double current_x, double current_y, double current_theta, double observed_x, double observed_y, double &result_x, double &result_y)
 {
-	const double theta = -M_PI / 2;// #    - 90 degrees
+	double theta = current_theta;
 
 								   // transform to map x coordinate
 	result_x = current_x + (std::cos(theta) * observed_x) - (std::sin(theta) * observed_y);

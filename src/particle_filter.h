@@ -131,7 +131,9 @@ private:
 	double measure_dist(double pt1_x, double pt1_y, double pt2_x, double pt2_y);
 
 	// transforms point from car coords (x up, y left) to map coord (x right, y up)
-	void transform_coords_car_to_map(double current_x, double current_y, double observed_x, double observed_y, double &result_x, double &result_y);	
+	void transform_coords_car_to_map(double current_x, double current_y, double current_theta,
+									 double observed_x, double observed_y, 
+									 double &result_x, double &result_y);
 };
 
 
