@@ -11,6 +11,8 @@
 
 #include "helper_functions.h"
 
+#include <random>
+
 struct Particle {
 
 	int id;
@@ -37,6 +39,9 @@ class ParticleFilter {
 	
 	// Vector of weights of all particles
 	std::vector<double> weights;
+
+	// used for random number generation
+	std::default_random_engine gen;
 	
 public:
 	
@@ -115,6 +120,18 @@ public:
 	const bool initialized() const {
 		return is_initialized;
 	}
+
+private:
+	double generate_particle_weight(double observation_x, double observation_y, // coords of observation
+		double mu_x, double mu_y, // coords of nearest landmarks
+		double landmark_stddev_x, double landmark_stddev_y
+	);
+
+	// calculates distance between two points (pythag)
+	double measure_dist(double pt1_x, double pt1_y, double pt2_x, double pt2_y);
+
+	// transforms point from car coords (x up, y left) to map coord (x right, y up)
+	void transform_coords_car_to_map(double current_x, double current_y, double observed_x, double observed_y, double &result_x, double &result_y);	
 };
 
 
